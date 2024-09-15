@@ -1,26 +1,20 @@
 package main 
 
 import (
-	"context"
-	"fmt"
-	"log"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"operation/login"
+    "fmt"
+    "operation/login"
+    "operation/storage"
 )
 
 func main() {
-
-	clientset := login.GetClient()
-
-	// Use the clientset to list pods in the "default" namespace
-	pods, err := clientset.CoreV1().Pods("default").List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		log.Fatalf("Failed to list pods: %v", err)
-	}
-
-	// Print the names of the pods
-	fmt.Printf("There are %d pods in the default namespace:\n", len(pods.Items))
-	for _, pod := range pods.Items {
-		fmt.Printf("- %s\n", pod.Name)
-	}
+    // Get the Kubernetes clientset
+    clientset:= login.GetClient()
+   
+    // Deploy storage resources
+    firstprocess := storage.Deploying(clientset)
+    
+    // Wait for the process to complete
+    <-firstprocess
+    close(firstprocess)
+    fmt.Println("hello")
 }
