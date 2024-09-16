@@ -3,7 +3,7 @@ package master
 import (
 	"context"
 	"log"
-
+        "fmt"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -148,6 +148,50 @@ func createSparkMasterStatefulSet(clientset *kubernetes.Clientset) {
 	}
 	log.Println("Successfully created StatefulSet: spark-storage")
 }
+
+
+func deleteMasterStatefulSet(clientset *kubernetes.Clientset) {
+        statefulSetName := "spark-master"
+        namespace := "default"
+
+        err := clientset.AppsV1().StatefulSets(namespace).Delete(context.TODO(), statefulSetName, metav1.DeleteOptions{})
+        if err != nil {
+                fmt.Printf("StatefulSet %s not found\n", statefulSetName)
+        }else{
+                fmt.Printf("StatefulSet %s deleted\n", statefulSetName)
+        }
+}
+
+func deleteMasterEnvSet(clientset *kubernetes.Clientset, target string, namespace string) {
+        
+        err := clientset.CoreV1().Services(namespace).Delete(context.TODO(), target, metav1.DeleteOptions{})
+        if err != nil {
+                fmt.Printf("service %s not found\n", target)
+        }else{
+                fmt.Printf("service %s deleted\n", target)
+        }
+}
+
+func deleteMasterTotalEnv(clientset *kubernetes.Clientset) {
+        envList := []string{"spark-master-external", "spark-master-service"}
+        for _, single := range envList {
+                deleteMasterEnvSet(clientset, single, "default")
+        }
+
+}
+
+func DeletingMaster(clientset *kubernetes.Clientset, preoreder chan interface{}) chan interface{} {
+        signal := make(chan interface{})
+        go func(po chan interface{}, sp chan interface{}, clientset *kubernetes.Clientset) {
+                defer close(preoreder)
+                <-po
+		deleteMasterStatefulSet(clientset)
+                deleteMasterTotalEnv(clientset)
+                sp <- 1
+        }(preoreder, signal, clientset)
+        return signal
+}
+
 
 func int32Ptr(i int32) *int32 { return &i }
 

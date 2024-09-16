@@ -24,8 +24,9 @@ func deleteCluster(){
     clientset:= login.GetClient()
     firstdelete := controller.DeletingController(clientset)
     seconddelete := worker.DeletingWorker(clientset, firstdelete )
-    <-seconddelete
-    close(seconddelete)
+    thirddelete := master.DeletingMaster(clientset,seconddelete )
+    <-thirddelete
+    close(thirddelete)
 }
 
 func main() {
@@ -34,5 +35,5 @@ func main() {
     
     deleteCluster()
 
-    fmt.Println("hello")
+    fmt.Println("finish")
 }
