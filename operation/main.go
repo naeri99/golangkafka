@@ -25,8 +25,9 @@ func deleteCluster(){
     firstdelete := controller.DeletingController(clientset)
     seconddelete := worker.DeletingWorker(clientset, firstdelete )
     thirddelete := master.DeletingMaster(clientset,seconddelete )
-    <-thirddelete
-    close(thirddelete)
+    fourdelete := storage.DeletingStorage(clientset, thirddelete)
+    <-fourdelete
+    close(fourdelete)
 }
 
 func main() {
