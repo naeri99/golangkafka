@@ -50,7 +50,7 @@ func createMasterEnv(clientset *kubernetes.Clientset) {
 				Namespace: "default",
 			},
 			Spec: v1.ServiceSpec{
-				ClusterIP: "LoadBalancer",
+				Type: v1.ServiceTypeLoadBalancer,
 				Selector: map[string]string{
 					"app":       "spark",
 					"component": "master",

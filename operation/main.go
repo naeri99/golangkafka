@@ -5,6 +5,7 @@ import (
     "operation/login"
     "operation/storage"
     "operation/master"
+    "operation/worker"
 )
 
 func main() {
@@ -14,8 +15,9 @@ func main() {
     // Deploy storage resources
     firstprocess := storage.Deploying(clientset)
     secondprocess := master.DeployingMaster(clientset,firstprocess)
+    thirdprocess := worker.DeployingWorker(clientset,secondprocess )
     // Wait for the process to complete
-    <- secondprocess
-    close(secondprocess)
+    <- thirdprocess
+    close(thirdprocess)
     fmt.Println("hello")
 }
