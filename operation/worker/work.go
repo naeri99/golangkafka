@@ -3,7 +3,7 @@ package worker
 import (
 	"context"
 	"log"
-
+        "fmt"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -155,6 +155,52 @@ func createSparkWorkerStatefulSet(clientset *kubernetes.Clientset) {
 	log.Println("Successfully created StatefulSet: spark-storage")
 }
 
+func deleteWrokerStatefulSet(clientset *kubernetes.Clientset) {
+	statefulSetName := "spark-worker"
+	namespace := "default"
+
+	err := clientset.AppsV1().StatefulSets(namespace).Delete(context.TODO(), statefulSetName, metav1.DeleteOptions{})
+	if err != nil {
+                fmt.Printf("StatefulSet %s not found\n", statefulSetName)
+        }else{
+                fmt.Printf("StatefulSet %s deleted\n", statefulSetName)
+        }
+}
+
+func deleteWorkerEnvSet(clientset *kubernetes.Clientset, target string, namespace string) {
+        
+	err := clientset.CoreV1().Services(namespace).Delete(context.TODO(), target, metav1.DeleteOptions{})
+	if err != nil {
+		fmt.Printf("service %s not found\n", target)
+	}else{
+		fmt.Printf("service %s deleted\n", target)
+	}
+}
+
+func deleteWorkerTotalEnv(clientset *kubernetes.Clientset) {
+	envList := []string{"spark-worker-loadbalancer", "spark-worker-inner"}
+	for _, single := range envList {
+		deleteWorkerEnvSet(clientset, single, "default")
+	}
+
+}
+
+func DeletingWorker(clientset *kubernetes.Clientset, preoreder chan interface{}) chan interface{} {
+	signal := make(chan interface{})
+	go func(po chan interface{}, sp chan interface{}, clientset *kubernetes.Clientset) {
+		defer close(preoreder)
+		<-po
+		deleteWorkerTotalEnv(clientset)
+		deleteWrokerStatefulSet(clientset)
+		sp <- 1
+	}(preoreder, signal, clientset)
+	return signal
+}
+
+
+
+
+
 func int32Ptr(i int32) *int32 { return &i }
 
 func boolPtr(b bool) *bool { return &b }
@@ -166,7 +212,7 @@ func DeployingWorker(clientset *kubernetes.Clientset, preoreder chan interface{}
 		<-po
 		createWorkerEnv(clientset)
 		createSparkWorkerStatefulSet(clientset)
-		signal <- 1
+		sp <- 1
 	}(preoreder, signal, clientset)
 	return signal
 }

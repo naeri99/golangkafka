@@ -9,11 +9,8 @@ import (
     "operation/controller"
 )
 
-func main() {
-    // Get the Kubernetes clientset
+func generateCluster(){
     clientset:= login.GetClient()
-   
-    // Deploy storage resources
     firstprocess := storage.Deploying(clientset)
     secondprocess := master.DeployingMaster(clientset,firstprocess)
     thirdprocess := worker.DeployingWorker(clientset,secondprocess )
@@ -21,5 +18,21 @@ func main() {
     // Wait for the process to complete
     <- fourprocess
     close(fourprocess)
+}
+
+func deleteCluster(){
+    clientset:= login.GetClient()
+    firstdelete := controller.DeletingController(clientset)
+    seconddelete := worker.DeletingWorker(clientset, firstdelete )
+    <-seconddelete
+    close(seconddelete)
+}
+
+func main() {
+    
+    //generateCluster()
+    
+    deleteCluster()
+
     fmt.Println("hello")
 }
