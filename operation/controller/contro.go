@@ -1,4 +1,4 @@
-package master
+package controller
 
 import (
 	"context"
@@ -12,55 +12,27 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-func createMasterEnv(clientset *kubernetes.Clientset) {
+func createControllEnv(clientset *kubernetes.Clientset) {
 
 	services := []*v1.Service{
 		{
 
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "spark-master-service",
-				Namespace: "default",
-			},
-			Spec: v1.ServiceSpec{
-				ClusterIP: "None",
-				Selector: map[string]string{
-					"app":       "spark",
-					"component": "master",
-				},
-				Ports: []v1.ServicePort{
-					{
-						Name:       "port-7077",
-						Protocol:   v1.ProtocolTCP,
-						Port:       7077,
-						TargetPort: intstr.FromInt(7077),
-					},
-					{
-						Name:       "port-8083",
-						Protocol:   v1.ProtocolTCP,
-						Port:       8083,
-						TargetPort: intstr.FromInt(8083),
-					},
-				},
-			},
-		},
-		{
-
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "spark-master-external",
+				Name:      "spark-controller-loadbalancer",
 				Namespace: "default",
 			},
 			Spec: v1.ServiceSpec{
 				Type: v1.ServiceTypeLoadBalancer,
 				Selector: map[string]string{
 					"app":       "spark",
-					"component": "master",
+					"component": "ui",
 				},
 				Ports: []v1.ServicePort{
 					{
-						Name:       "port-7077",
+						Name:       "port-8889",
 						Protocol:   v1.ProtocolTCP,
-						Port:       8083,
-						TargetPort: intstr.FromInt(8083),
+						Port:       8889,
+						TargetPort: intstr.FromInt(8889),
 					},
 				},
 			},
@@ -80,46 +52,41 @@ func intstrFromInt(i int) intstr.IntOrString {
 	return intstr.IntOrString{IntVal: int32(i)}
 }
 
-func createSparkMasterStatefulSet(clientset *kubernetes.Clientset) {
+func createSparkControllStatefulSet(clientset *kubernetes.Clientset) {
 	statefulSet := &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "spark-master",
+			Name:      "spark-controller",
 			Namespace: "default",
 			Labels: map[string]string{
 				"app":       "spark",
-				"component": "master",
+				"component": "ui",
 			},
 		},
 		Spec: appsv1.StatefulSetSpec{
-			ServiceName: "spark-master-service",
+			ServiceName: "spark-controller-loadbalancer",
 			Replicas:    int32Ptr(1),
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
 					"app":       "spark",
-					"component": "master",
+					"component": "ui",
 				},
 			},
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
 						"app":       "spark",
-						"component": "master",
+						"component": "ui",
 					},
 				},
 				Spec: v1.PodSpec{
 					Containers: []v1.Container{
 						{
-							Name:  "spark-master",
-							Image: "bumory1987/sparks:masterv2",
+							Name:  "spark-controller",
+							Image: "bumory1987/sparks:ui",
 							Ports: []v1.ContainerPort{
-								{ContainerPort: 8083},
-								{ContainerPort: 7077},
+								{ContainerPort: 8889},
 							},
 							Env: []v1.EnvVar{
-								{
-									Name:  "SPARK_MASTER_HOST",
-									Value: "spark-master-0.spark-master-service.default.svc.cluster.local",
-								},
 								{
 									Name:  "STORAGE",
 									Value: "spark-storage-0.spark-storage-service.default.svc.cluster.local",
@@ -153,13 +120,13 @@ func int32Ptr(i int32) *int32 { return &i }
 
 func boolPtr(b bool) *bool { return &b }
 
-func DeployingMaster(clientset *kubernetes.Clientset, preoreder chan interface{}) chan interface{} {
+func DeployingController(clientset *kubernetes.Clientset, preoreder chan interface{}) chan interface{} {
 	signal := make(chan interface{})
 	go func(po chan interface{}, sp chan interface{}, clientset *kubernetes.Clientset) {
 		defer close(preoreder)
 		<-po
-		createMasterEnv(clientset)
-		createSparkMasterStatefulSet(clientset)
+		createControllEnv(clientset)
+		createSparkControllStatefulSet(clientset)
 		signal <- 1
 	}(preoreder, signal, clientset)
 	return signal
